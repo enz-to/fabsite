@@ -1,0 +1,12 @@
+{
+    "5": {
+        "name": "enz",
+        "image_path": "static/faces/5.jpg"
+    },
+    "232-05285m": {
+        "name": "fabrero",
+        "course": "gg",
+        "image_path": "static/faces/232-05285m.jpg",
+        "added_date": "2025-03-12 21:18:23"
+    }
+}
