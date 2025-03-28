@@ -1,0 +1,68 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>View Students - School Attendance System</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+    <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;600&display=swap" rel="stylesheet">
+</head>
+<body>
+    <nav class="navbar">
+        <div class="logo">
+            <img src="{{ url_for('static', filename='school-logo.png') }}" alt="School Logo">
+            <span>School Attendance System</span>
+        </div>
+        <div class="nav-links">
+            <a href="/">← Back to Home</a>
+        </div>
+    </nav>
+
+    <div class="container">
+        <div class="section">
+            <h2>Registered Students</h2>
+            <div class="search-box">
+                <input type="text" id="searchInput" placeholder="Search by name or ID...">
+            </div>
+            <div class="student-list">
+                {% if students %}
+                    {% for student_id, info in students.items() %}
+                    <div class="student-card" data-name="{{ info.name.lower() }}" data-id="{{ student_id.lower() }}">
+                        <div class="student-photo">
+                            <img src="{{ url_for('static', filename=info.image_path.replace('static/', '')) }}" alt="{{ info.name }}">
+                        </div>
+                        <div class="student-details">
+                            <h3>{{ info.name }}</h3>
+                            <p><strong>ID:</strong> {{ student_id }}</p>
+                            <p><strong>Course:</strong> {{ info.course }}</p>
+                            <p class="registration-date"><strong>Registered:</strong> {{ info.added_date }}</p>
+                        </div>
+                    </div>
+                    {% endfor %}
+                {% else %}
+                    <p class="no-students">No students registered yet.</p>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // Search functionality
+        const searchInput = document.getElementById('searchInput');
+        const studentCards = document.querySelectorAll('.student-card');
+
+        searchInput.addEventListener('input', function(e) {
+            const searchTerm = e.target.value.toLowerCase();
+            
+            studentCards.forEach(card => {
+                const name = card.dataset.name;
+                const id = card.dataset.id;
+                
+                if (name.includes(searchTerm) || id.includes(searchTerm)) {
+                    card.style.display = 'flex';
+                } else {
+                    card.style.display = 'none';
+                }
+            });
+        });
+    </script>
+</body>
+</html>

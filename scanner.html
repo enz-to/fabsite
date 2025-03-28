@@ -1,0 +1,105 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Face Scanner</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+    <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;600&display=swap" rel="stylesheet">
+</head>
+<body>
+    <nav class="navbar">
+        <div class="logo">
+            <span>Attendance Scanner</span>
+        </div>
+        <div class="nav-links">
+            <a href="/" class="back-btn">← Back to Home</a>
+        </div>
+    </nav>
+
+    <div class="container">
+        <div class="section scanner-section">
+            <h1>Face Scanner</h1>
+            <div class="camera-section">
+                <video id="video" width="640" height="480" autoplay playsinline></video>
+                <canvas id="canvas" style="display:none;"></canvas>
+                <div class="camera-controls">
+                    <button id="startCamera" class="camera-btn">Start Camera</button>
+                    <button id="capturePhoto" class="camera-btn" disabled>Capture Attendance</button>
+                </div>
+            </div>
+            <div id="result" class="result-message"></div>
+        </div>
+    </div>
+
+    <script>
+        let stream = null;
+        const video = document.getElementById('video');
+        const canvas = document.getElementById('canvas');
+        const startCameraBtn = document.getElementById('startCamera');
+        const capturePhotoBtn = document.getElementById('capturePhoto');
+        const resultDiv = document.getElementById('result');
+
+        startCameraBtn.addEventListener('click', async () => {
+            try {
+                stream = await navigator.mediaDevices.getUserMedia({ 
+                    video: {
+                        width: { ideal: 1280 },
+                        height: { ideal: 720 },
+                        facingMode: "user"
+                    }
+                });
+                video.srcObject = stream;
+                await video.play();
+                startCameraBtn.disabled = true;
+                capturePhotoBtn.disabled = false;
+            } catch (err) {
+                console.error('Camera error:', err);
+                resultDiv.innerHTML = 'Error: Cannot access camera. Please check permissions.';
+                resultDiv.classList.add('error');
+            }
+        });
+
+        capturePhotoBtn.addEventListener('click', async () => {
+            if (!stream) return;
+
+            canvas.width = video.videoWidth;
+            canvas.height = video.videoHeight;
+            canvas.getContext('2d').drawImage(video, 0, 0);
+            
+            const imageData = canvas.toDataURL('image/jpeg');
+
+            try {
+                const response = await fetch('/scan_face', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({ image: imageData })
+                });
+
+                const data = await response.json();
+                
+                if (data.status === 'success') {
+                    resultDiv.innerHTML = `✓ Attendance recorded for: ${data.student}`;
+                    resultDiv.classList.remove('error');
+                    resultDiv.classList.add('success');
+                } else {
+                    resultDiv.innerHTML = `✗ Error: ${data.message}`;
+                    resultDiv.classList.remove('success');
+                    resultDiv.classList.add('error');
+                }
+            } catch (error) {
+                resultDiv.innerHTML = `✗ Error: ${error.message}`;
+                resultDiv.classList.remove('success');
+                resultDiv.classList.add('error');
+            }
+        });
+
+        // Clean up when leaving page
+        window.onbeforeunload = () => {
+            if (stream) {
+                stream.getTracks().forEach(track => track.stop());
+            }
+        };
+    </script>
+</body>
+</html>

@@ -1,0 +1,224 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>School Attendance System</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+    <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;600&display=swap" rel="stylesheet">
+</head>
+<body>
+    <nav class="navbar">
+        <div class="logo">
+            <img src="{{ url_for('static', filename='school-logo.png') }}" alt="School Logo">
+            <span>School Attendance System</span>
+        </div>
+        <div class="nav-links">
+            <a href="#" class="active">Home</a>
+            <a href="/view_students">View Students</a>
+            <a href="#" id="viewAttendanceBtn">View Attendance</a>
+            <a href="#" id="reportsBtn">Reports</a>
+        </div>
+    </nav>
+
+    <div class="loading" id="loadingOverlay"></div>
+
+    <div class="container">
+        <div class="section">
+            <h2>Add New Student</h2>
+            <div class="camera-section">
+                <div class="camera-status">Camera: Not active</div>
+                <video id="video" width="400" height="300" autoplay></video>
+                <canvas id="canvas" style="display:none;"></canvas>
+                <div class="camera-controls">
+                    <button id="startCamera" class="camera-btn">Start Camera</button>
+                    <button id="capturePhoto" class="camera-btn" disabled>Capture Photo</button>
+                    <button id="retakePhoto" class="camera-btn" style="display:none;">Retake Photo</button>
+                </div>
+                <div id="preview"></div>
+            </div>
+            <form id="addStudentForm" action="/add_student" method="POST" enctype="multipart/form-data">
+                <div class="form-group">
+                    <label>Student ID</label>
+                    <input type="text" name="student_id" placeholder="Enter Student ID" required>
+                </div>
+                <div class="form-group">
+                    <label>Full Name</label>
+                    <input type="text" name="name" placeholder="Enter Full Name" required>
+                </div>
+                <div class="form-group">
+                    <label>Course/Section</label>
+                    <input type="text" name="course" placeholder="Enter Course and Section" required>
+                </div>
+                <input type="hidden" name="image" id="imageData">
+                <button type="submit" class="submit-btn">Add Student</button>
+            </form>
+            <div class="success-message" id="successMessage">
+                <span class="checkmark">✓</span>
+                Student added successfully!
+            </div>
+        </div>
+
+        <div class="section">
+            <h2>Manage Subjects</h2>
+            <form id="addSubjectForm">
+                <div class="form-group">
+                    <label>Subject Code</label>
+                    <input type="text" id="subject_code" placeholder="Enter Subject Code" required>
+                </div>
+                <div class="form-group">
+                    <label>Subject Name</label>
+                    <input type="text" id="subject_name" placeholder="Enter Subject Name" required>
+                </div>
+                <div class="form-row">
+                    <div class="form-group half">
+                        <label>Start Time</label>
+                        <input type="time" id="start_time" required>
+                    </div>
+                    <div class="form-group half">
+                        <label>End Time</label>
+                        <input type="time" id="end_time" required>
+                    </div>
+                </div>
+                <button type="submit" class="submit-btn">Add Subject</button>
+            </form>
+        </div>
+
+        <div class="section action-section">
+            <h2>Attendance Actions</h2>
+            <div class="action-buttons">
+                <a href="/start_scanning" class="action-btn scan-btn">
+                    <span class="icon">📸</span>
+                    Start Scanning
+                </a>
+                <a href="#" class="action-btn report-btn">
+                    <span class="icon">📊</span>
+                    Generate Report
+                </a>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        let stream = null;
+        const video = document.getElementById('video');
+        const canvas = document.getElementById('canvas');
+        const preview = document.getElementById('preview');
+        const startCameraBtn = document.getElementById('startCamera');
+        const capturePhotoBtn = document.getElementById('capturePhoto');
+        const retakePhotoBtn = document.getElementById('retakePhoto');
+        const statusDiv = document.querySelector('.camera-status');
+
+        async function startCamera() {
+            try {
+                stream = await navigator.mediaDevices.getUserMedia({ 
+                    video: {
+                        width: { ideal: 1280 },
+                        height: { ideal: 720 },
+                        facingMode: "user"
+                    }
+                });
+                video.srcObject = stream;
+                await video.play();
+                startCameraBtn.disabled = true;
+                capturePhotoBtn.disabled = false;
+                statusDiv.innerHTML = 'Camera: Active';
+            } catch (err) {
+                console.error('Error accessing camera:', err);
+                statusDiv.innerHTML = 'Camera: Error - Please check permissions';
+                alert('Unable to access camera. Please make sure you have granted camera permissions.');
+            }
+        }
+
+        startCameraBtn.addEventListener('click', startCamera);
+
+        capturePhotoBtn.addEventListener('click', () => {
+            canvas.width = video.videoWidth;
+            canvas.height = video.videoHeight;
+            canvas.getContext('2d').drawImage(video, 0, 0);
+            
+            const img = document.createElement('img');
+            img.src = canvas.toDataURL('image/jpeg');
+            img.style.width = '200px';
+            preview.innerHTML = '';
+            preview.appendChild(img);
+            
+            document.getElementById('imageData').value = canvas.toDataURL('image/jpeg');
+            
+            if (stream) {
+                stream.getTracks().forEach(track => track.stop());
+                video.srcObject = null;
+            }
+            
+            startCameraBtn.disabled = false;
+            capturePhotoBtn.disabled = true;
+            retakePhotoBtn.style.display = 'inline-block';
+            statusDiv.innerHTML = 'Camera: Photo captured';
+        });
+
+        retakePhotoBtn.addEventListener('click', () => {
+            preview.innerHTML = '';
+            document.getElementById('imageData').value = '';
+            retakePhotoBtn.style.display = 'none';
+            startCamera();
+        });
+
+        document.getElementById('addStudentForm').addEventListener('submit', function(e) {
+            e.preventDefault();
+            const imageData = document.getElementById('imageData').value;
+            if (!imageData) {
+                alert('Please capture a photo before submitting.');
+                return;
+            }
+            const studentId = this.querySelector('[name="student_id"]').value;
+            const name = this.querySelector('[name="name"]').value;
+            
+            if (!studentId.match(/^[A-Za-z0-9-]+$/)) {
+                alert('Student ID should only contain letters, numbers, and hyphens');
+                return;
+            }
+            
+            if (!name.match(/^[A-Za-z\s]+$/)) {
+                alert('Name should only contain letters and spaces');
+                return;
+            }
+            const loadingOverlay = document.getElementById('loadingOverlay');
+            loadingOverlay.style.display = 'flex';
+            
+            const formData = new FormData(this);
+            formData.set('image', imageData);
+
+            fetch('/add_student', {
+                method: 'POST',
+                body: formData
+            })
+            .then(response => response.json())
+            .then(data => {
+                loadingOverlay.style.display = 'none';
+                if(data.status === 'success') {
+                    showNotification('Student added successfully!', 'success');
+                    this.reset();
+                    preview.innerHTML = '';
+                    retakePhotoBtn.style.display = 'none';
+                    statusDiv.innerHTML = 'Camera: Not active';
+                } else {
+                    showNotification('Error: ' + (data.message || 'Failed to add student'), 'error');
+                }
+            })
+            .catch(error => {
+                loadingOverlay.style.display = 'none';
+                showNotification('Error adding student', 'error');
+            });
+        });
+
+        function showNotification(message, type) {
+            const notification = document.createElement('div');
+            notification.className = `notification ${type}`;
+            notification.textContent = message;
+            document.body.appendChild(notification);
+            
+            setTimeout(() => {
+                notification.remove();
+            }, 3000);
+        }
+    </script>
+</body>
+</html>
